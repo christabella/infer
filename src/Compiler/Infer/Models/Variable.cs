@@ -3292,7 +3292,17 @@ namespace Microsoft.ML.Probabilistic.Models
                     sumUpTo[i] = sumUpTo[i - 1] + array[i];
                 }
             }
-            var sum = Variable.Copy(sumUpTo[((Variable<int>)n.Size) - 1]);
+            var size = (Variable<int>)n.Size;
+            var sizeIsZero = (size == 0);
+            var sum = Variable.New<double>();
+            using (Variable.If(sizeIsZero))
+            {
+                sum.SetTo(Variable.Constant(0.0));
+            }
+            using (Variable.IfNot(sizeIsZero))
+            {
+                sum.SetTo(Variable.Copy(sumUpTo[size - 1]));
+            }
             ReverseAndCloseBlocks(blocks);
             return sum;
         }
