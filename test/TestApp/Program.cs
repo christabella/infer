@@ -84,7 +84,7 @@ namespace TestApp
 
             //new VmpTests().GammaSumTest();
             //new SerialTests().MaxArrayTest();
-            new TrueSkillTests().RaterDrawMarginPrecisionAndThresholdsModel();
+            //new TrueSkillTests().RaterDrawMarginPrecisionAndThresholdsModel();
 
             if (false)
             {
