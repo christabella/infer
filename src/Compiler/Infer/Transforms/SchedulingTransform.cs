@@ -747,7 +747,7 @@ namespace Microsoft.ML.Probabilistic.Compiler.Transforms
         /// <param name="g"></param>
         /// <param name="keepUnavailable"></param>
         /// <returns></returns>
-        private bool DeleteOffsetEdges(DependencyGraph g, bool keepUnavailable = false)
+        private bool DeleteOffsetEdges(DependencyGraph g, bool keepUnavailable = true)
         {
             bool anyDeleted = false;
             foreach (KeyValuePair<EdgeIndex, IOffsetInfo> entry in g.OffsetIndices)
