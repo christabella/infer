@@ -40,12 +40,11 @@ namespace Microsoft.ML.Probabilistic.Tests
             //MessageTransform.debug = true;
             //SchedulingTransform.doRepair = false;
             //SchedulingTransform.UseScheduling2 = false;
-            //Scheduling2Transform.IgnoreOffsetRequirements = false;
-            //Scheduling2Transform.verbose = true;
-            //Scheduling2Transform.showGraphs = true;
-            //Scheduling2Transform.showAncestors = true;
+            Scheduler.verbose = true;
+            //Scheduler.showOffsetEdges = true;
             //DependencyGraph.debug = true;
-            //SchedulingTransform.debug = true;
+            SchedulingTransform.debug = true;
+            //Scheduler.showCapacityBreakdown = true;
             //Scheduling2Transform.showCapacityBreakdown = true;
             //Scheduling2Transform.showMinCut = true;
             //Scheduling2Transform.useMinCut = false;

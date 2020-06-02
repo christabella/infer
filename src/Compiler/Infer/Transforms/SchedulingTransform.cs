@@ -882,7 +882,7 @@ namespace Microsoft.ML.Probabilistic.Compiler.Transforms
             });
         }
 
-        internal static void DrawOffsetEdges(DependencyGraph g, Dictionary<NodeIndex, NodeIndex> groupOf = null)
+        internal static void DrawOffsetEdges(DependencyGraph g, Dictionary<NodeIndex, NodeIndex> groupOf = null, bool inThread = true)
         {
             if (Models.InferenceEngine.Visualizer?.DependencyGraphVisualizer != null)
             {
@@ -921,7 +921,6 @@ namespace Microsoft.ML.Probabilistic.Compiler.Transforms
                     new EdgeStylePredicate("NoInit", isNoInit, EdgeStyle.Dashed)
                 };
                 string title = "offset edges";
-                bool inThread = true;
                 if (inThread)
                 {
                     var viewThread = new System.Threading.Thread(delegate ()

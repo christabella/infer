@@ -76,16 +76,21 @@ namespace TestApp
             //InferenceEngine.DefaultEngine.Compiler.UseLocals = false;
             TestUtils.SetDebugOptions();
             TestUtils.SetBrowserMode(BrowserMode.OnError);
-            //TestUtils.SetBrowserMode(BrowserMode.Always);
+            TestUtils.SetBrowserMode(BrowserMode.Always);
             //TestUtils.SetBrowserMode(BrowserMode.WriteFiles);
 
             Stopwatch watch = new Stopwatch();
             watch.Start();
 
-            //new SerialTests().MaxArrayTest();
+            //new InferTests().InferUniformBernoulliFromBetaTest();
+            //new SerialTests().FirstStateConstrainedPositiveChainTest();
+            //new SerialTests().SimplestChainWithObservationsTest();
+            //new SerialTests().SumForwardBackwardTest2();
+
             //new BayesPointMachineTests().SparseFactorizedBayesPointEvidence();
             //new ParallelSchedulerTests().DistributedScheduleTest();
-            new TrueSkillTests().RaterDrawMarginPrecisionAndThresholdsModel();
+            //new TrueSkillTests().RaterDrawMarginPrecisionAndThresholdsModel();
+            new SerialTests().TrueSkillChainTest3();
 
             if (false)
             {
