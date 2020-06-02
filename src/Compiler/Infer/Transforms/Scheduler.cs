@@ -28,7 +28,7 @@ namespace Microsoft.ML.Probabilistic.Compiler.Transforms
 
     internal class Scheduler
     {
-        internal static bool verbose, showAncestors, showGraphs, showMinCut, showTimings, showCapacityBreakdown, showOffsetEdges;
+        internal static bool verbose, showAncestors, showGraphs, showUnwind, showMinCut, showTimings, showCapacityBreakdown, showOffsetEdges;
         internal bool debug, doRepair = true, useRepair2 = false;
         internal bool useExperimentalSerialSchedules;
         internal Action<string, IEnumerable<string>> RecordText;
@@ -937,7 +937,7 @@ namespace Microsoft.ML.Probabilistic.Compiler.Transforms
                     if (debug && verbose)
                     {
                         Debug.WriteLine("unwinding " + EdgeToString(oldFrame.edge));
-                        if (showGraphs)
+                        if (showUnwind)
                             DrawLabeledGraph("unwind", false, edgeCost);
                     }
                     // unwind labels
@@ -2425,14 +2425,15 @@ namespace Microsoft.ML.Probabilistic.Compiler.Transforms
             {
                 return 1;
             }
-            else if (IsRequired(edge, includeAny: true))
-            {
-                // This case is needed for SumForwardBackwardTest2
-                return 2;
-            }
             else if (IsNoInit(edge))
             {
                 return 1000;
+            }
+            else if (IsRequired(edge, includeAny: true))
+            {
+                // This case is needed for SumForwardBackwardTest2
+                // It must follow the IsNoInit case for TrueSkillChainTest3
+                return 2;
             }
             else
             {
@@ -2826,7 +2827,7 @@ namespace Microsoft.ML.Probabilistic.Compiler.Transforms
                     edgeCost[edge2] += 1f / length;
 
                     if (verbose)
-                        Debug.WriteLine("{0} increased cost of {1} to {2}", EdgeToString(edge), EdgeToString(edge2), edgeCost[edge2]);
+                        Debug.WriteLine($"{EdgeToString(edge)} increased cost of {EdgeToString(edge2)} to {edgeCost[edge2]} (shortest cycle length={length})");
                 }
             }
         }

@@ -85,12 +85,12 @@ namespace TestApp
             //new InferTests().InferUniformBernoulliFromBetaTest();
             //new SerialTests().FirstStateConstrainedPositiveChainTest();
             //new SerialTests().SimplestChainWithObservationsTest();
-            //new SerialTests().SumForwardBackwardTest2();
+            new SerialTests().SumForwardBackwardTest2();
 
             //new BayesPointMachineTests().SparseFactorizedBayesPointEvidence();
             //new ParallelSchedulerTests().DistributedScheduleTest();
             //new TrueSkillTests().RaterDrawMarginPrecisionAndThresholdsModel();
-            new SerialTests().TrueSkillChainTest3();
+            //new SerialTests().TrueSkillChainTest3();
 
             if (false)
             {
