@@ -23,6 +23,7 @@ using Microsoft.ML.Probabilistic.Tests;
 using Microsoft.ML.Probabilistic.Tests.Core;
 using Microsoft.ML.Probabilistic.Tests.CodeModel;
 using Microsoft.ML.Probabilistic.Tests.CodeCompilerTests;
+using System.Numerics;
 
 
 #if SUPPRESS_UNREACHABLE_CODE_WARNINGS
@@ -85,12 +86,14 @@ namespace TestApp
             //new InferTests().InferUniformBernoulliFromBetaTest();
             //new SerialTests().FirstStateConstrainedPositiveChainTest();
             //new SerialTests().SimplestChainWithObservationsTest();
-            new SerialTests().SumForwardBackwardTest2();
+            //new SerialTests().SumForwardBackwardTest2();
 
             //new BayesPointMachineTests().SparseFactorizedBayesPointEvidence();
             //new ParallelSchedulerTests().DistributedScheduleTest();
             //new TrueSkillTests().RaterDrawMarginPrecisionAndThresholdsModel();
             //new SerialTests().TrueSkillChainTest3();
+            //new TutorialTests().ChessAnalysis();
+            new InferTests().RazinTest();
 
             if (false)
             {

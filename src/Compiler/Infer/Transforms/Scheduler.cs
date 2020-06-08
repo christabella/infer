@@ -1423,11 +1423,11 @@ namespace Microsoft.ML.Probabilistic.Compiler.Transforms
                 float iterCost = SumSubarray(edgeCostIter, iterBackEdges);
                 if (initCost < iterCost)
                 {
-                    Debug.WriteLine("initializer reduced cost from {0} to {1}", iterCost, initCost);
+                    Debug.WriteLine($"initializer reduced cost from {iterCost} to {initCost}");
                 }
                 else
                 {
-                    Debug.WriteLine("did not initialize since cost did not reduce (from {0} to {1})", iterCost, initCost);
+                    Debug.WriteLine($"did not initialize since cost did not reduce (from {iterCost} to {initCost})");
                 }
             }
             DepthFirstSearch<NodeIndex> dfsBack;
@@ -1446,7 +1446,7 @@ namespace Microsoft.ML.Probabilistic.Compiler.Transforms
                     string groupString = "";
                     if (useGroups && (node >= groupGraph.firstGroup))
                         groupString = "group ";
-                    Debug.WriteLine("found {1}{0}", node, groupString);
+                    Debug.WriteLine($"found {groupString}{node}");
                 }
                 nodesToInit.Add(node);
             };
@@ -1471,7 +1471,7 @@ namespace Microsoft.ML.Probabilistic.Compiler.Transforms
                         string txt = DoubleToString(edgeCostIter[iterBackEdge]);
                         if (initializerDescendants.Contains(source))
                             txt += " init";
-                        Debug.WriteLine("searching from {0} {1}", EdgeToString(iterBackEdge), txt);
+                        Debug.WriteLine($"searching from {EdgeToString(iterBackEdge)} {txt}");
                     }
                     if (useGroups)
                     {
@@ -1485,7 +1485,7 @@ namespace Microsoft.ML.Probabilistic.Compiler.Transforms
                     directionIter[iterBackEdge] = Direction.Forward;
                 }
                 else if (debug)
-                    Debug.WriteLine("cost[{0}] = {1}", EdgeToString(iterBackEdge), edgeCostIter[iterBackEdge]);
+                    Debug.WriteLine($"cost[{EdgeToString(iterBackEdge)}] = {edgeCostIter[iterBackEdge]}");
             }
 
             return costIsInfinite;
