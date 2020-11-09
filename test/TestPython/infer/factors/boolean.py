@@ -1,3 +1,6 @@
+"""Interface for boolean factors https://dotnet.github.io/infer/userguide/Bool%20factors.html.
+"""
+
 import sys
 folder = "../Tests/bin/debug/net461/"
 sys.path.append(folder)
@@ -28,6 +31,9 @@ class Bernoulli(object):
         new_variable = Bernoulli()
         new_variable._clr_instance = self._clr_instance.op_BitwiseAnd(self._clr_instance, other._clr_instance)
         return new_variable
+
+    def __or__(self, other):
+        raise NotImplementedError
 
     def observed(self, val):
         self._clr_instance.ObservedValue = val

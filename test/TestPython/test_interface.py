@@ -6,7 +6,7 @@ import sys
 sys.path.append('C:\\Users\\Administrator\\Source\\Repos\\infer\\test\\TestPython')
 
 import infer as inf
-from infer.variables import Bernoulli
+from infer.factors import Bernoulli
 
 def two_coins():
     first_coin = Bernoulli(0.5)
