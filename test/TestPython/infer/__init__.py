@@ -5,5 +5,4 @@ folder = "../Tests/bin/debug/net461/"
 sys.path.append(folder)
 
 from .common import Engine, constrain
-
-__all__ = ["Engine"]
+from .math import normal
