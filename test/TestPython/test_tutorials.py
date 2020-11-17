@@ -5,7 +5,7 @@
 import clr
 from System import Boolean, Double, Int32, Array
 
-folder = "../Tests/bin/DebugFull/net461/"
+folder = "../Tests/bin/debug/net461/"
 clr.AddReference(folder+"Microsoft.ML.Probabilistic")
 clr.AddReference(folder+"Microsoft.ML.Probabilistic.Compiler")
 from Microsoft.ML.Probabilistic import *
@@ -13,6 +13,7 @@ from Microsoft.ML.Probabilistic.Distributions import VectorGaussian, Beta, Berno
 from Microsoft.ML.Probabilistic.Math import Rand, Vector, DenseVector, PositiveDefiniteMatrix
 from Microsoft.ML.Probabilistic.Models import Variable, InferenceEngine, Range, VariableArray
 from Microsoft.ML.Probabilistic.Compiler.Reflection import Invoker
+from Microsoft.ML.Probabilistic.Factors.Attributes import QualityBand
 
 def TwoCoins():
     firstCoin = Variable.Bernoulli(0.5)
@@ -68,8 +69,12 @@ def LearningAGaussianWithRanges():
 
 def BayesPointMachine(incomes, ages, w, y):
     j = y.Range
+    # TODO We should cast to Vector implicitly
     xData = [Vector.FromArray(income, age, 1) for income, age in zip(incomes, ages)]
-    x = VariableObserved(xData, j)
+    #x = Variable.Array[Vector](Range(len(incomes)))
+    x = Variable.Array[Vector](y.Range)
+    x.ObservedValue = xData
+    #x = VariableObserved(xData, j)
     # The following does not work in pythonnet:
     #x = Variable.Observed[Vector](Array[Vector](xData))
 
@@ -217,6 +222,7 @@ def VariableObserved(list, range=None):
     return Invoker.InvokeStatic(Variable, "Observed", args)
 
 def InitialiseTo(variable, distribution):
+    # Reflection essentially, public in the Infer.NET API but not in the manual
     Invoker.InvokeInstance("InitialiseTo", variable, distribution)
 
 def ToClr(matrix):
@@ -241,19 +247,75 @@ def __list_method_overloads(method):
     for m in f'{method.__overloads__}'.split('\n'):
         print(' '.join(m.split(' ')[1:]))
 
+def HelloStrings():
+    str1 = Variable.StringUniform()
+    str2 = Variable.StringUniform()
+    # TODO: text = str1 + " " + str2
+    text = str1.op_Addition(str1, " ")
+    text = text.op_Addition(text, str2)
+    text.ObservedValue = "hello uncertain world"
+    engine = InferenceEngine()
+    print(f"str1: {engine.Infer(str1)}")
+    print(f"str2: {engine.Infer(str2)}")
+    dist_of_str1 = engine.Infer(str1)
+    for s in ["hello", "hello uncertain", "hello uncertain world"]:
+        print(f"P(str1 = '{s}') = {dist_of_str1.GetProb(s)}")
+
+def StringFormat():
+    # Infer argument
+    name = Variable.StringCapitalized()
+    # TODO: text = Variable.StringFormat("My name is {0}.", name)
+    text = Invoker.InvokeStatic(Variable, "StringFormat", ["My name is {0}.", name])
+    text.ObservedValue = "My name is John."
+    engine = InferenceEngine()
+    engine.Compiler.RecommendedQuality = QualityBand.Experimental;
+    print(f"name is '{engine.Infer(name)}'")
+
+    # Infer template
+    name = Variable.StringCapitalized()
+    # TODO: Overload op_Addition
+    template = Variable.StringUniform().op_Addition(Variable.StringUniform(), Variable.CharNonWord())
+    template = template.op_Addition(template, "{0}")
+    template = template.op_Addition(template, Variable.CharNonWord())
+    template = template.op_Addition(template, Variable.StringUniform())
+    text = Invoker.InvokeStatic(Variable, "StringFormat", [template, name])
+
+    text.ObservedValue = "Hello, mate! I'm Dave."
+    print(f"name is '{engine.Infer(name)}'")
+    print(f"template is '{engine.Infer(template)}'")
+
+    # With a slightly different observation.
+    text.ObservedValue = "Hi! My name is John."
+    print(f"name is '{engine.Infer(name)}'")
+    print(f"template is '{engine.Infer(template)}'")
+
+    # Provide more data to reduce ambiguity.
+    name2 = Variable.StringCapitalized()
+    text2 = Invoker.InvokeStatic(Variable, "StringFormat", [template, name2])            
+    text2.ObservedValue = "Hi! My name is Tom."                
+    print(f"name is '{engine.Infer(name)}'")
+    print(f"name2 is '{engine.Infer(name2)}'")
+    print(f"template is '{engine.Infer(template)}'")
+
+    # Generate text with the learned template.
+    text3 = Invoker.InvokeStatic(Variable, "StringFormat", [template, "Boris"])
+    print(f"text3 is '{engine.Infer(text3)}'")
+
 # Using pytest in Visual Studio:
 # https://devblogs.microsoft.com/python/whats-new-for-python-in-visual-studio-16-3-preview-2/
 # pytest searches for tests in files named test_*.py or *_test.py
 # pytest collects functions with names prefixed by "test", either outside a class or in a class with name prefixed by "Test"
 
 def test_tutorials():
-    TwoCoins()
-    TruncatedGaussianEfficient()
-    LearningAGaussian()
-    LearningAGaussianWithRanges()
-    BayesPointMachineExample()
-    ClinicalTrial()
-    MixtureOfGaussians()
+    #TwoCoins()
+    #TruncatedGaussianEfficient()
+    #LearningAGaussian()
+    #LearningAGaussianWithRanges()
+    # BayesPointMachineExample()
+    # ClinicalTrial()
+    # MixtureOfGaussians()
+    # HelloStrings()
+    StringFormat()
 
 if __name__ == '__main__':
     test_tutorials()
