@@ -3,17 +3,20 @@
 # To stop the debugger in .NET code, follow the instructions at:
 # https://mail.python.org/archives/list/pythonnet@python.org/message/AZ4BKHN72PIRAG32ERFY3XS52NVNCL47/
 import clr
-from System import Boolean, Double, Int32, Array
+from System import Boolean, Double, Int32, Array, Char
+from System.Collections import IList
 
 folder = "../Tests/bin/debug/net461/"
 clr.AddReference(folder+"Microsoft.ML.Probabilistic")
 clr.AddReference(folder+"Microsoft.ML.Probabilistic.Compiler")
 from Microsoft.ML.Probabilistic import *
-from Microsoft.ML.Probabilistic.Distributions import VectorGaussian, Beta, Bernoulli, Discrete
-from Microsoft.ML.Probabilistic.Math import Rand, Vector, DenseVector, PositiveDefiniteMatrix
+from Microsoft.ML.Probabilistic.Distributions import VectorGaussian, Beta, Bernoulli, Discrete, DiscreteChar, Dirichlet
+from Microsoft.ML.Probabilistic.Math import Rand, Vector, DenseVector, PositiveDefiniteMatrix, PiecewiseVector
 from Microsoft.ML.Probabilistic.Models import Variable, InferenceEngine, Range, VariableArray
 from Microsoft.ML.Probabilistic.Compiler.Reflection import Invoker
 from Microsoft.ML.Probabilistic.Factors.Attributes import QualityBand
+from Microsoft.ML.Probabilistic.Utilities import Util
+
 
 def TwoCoins():
     firstCoin = Variable.Bernoulli(0.5)
@@ -268,7 +271,7 @@ def StringFormat():
     text = Invoker.InvokeStatic(Variable, "StringFormat", ["My name is {0}.", name])
     text.ObservedValue = "My name is John."
     engine = InferenceEngine()
-    engine.Compiler.RecommendedQuality = QualityBand.Experimental;
+    engine.Compiler.RecommendedQuality = QualityBand.Experimental
     print(f"name is '{engine.Infer(name)}'")
 
     # Infer template
@@ -300,11 +303,135 @@ def StringFormat():
     # Generate text with the learned template.
     text3 = Invoker.InvokeStatic(Variable, "StringFormat", [template, "Boris"])
     print(f"text3 is '{engine.Infer(text3)}'")
+def MotifFinder():
+    Rand.Restart(1337);
+
+    SequenceCount = 50
+    SequenceLength = 25
+    MotifPresenceProbability = 0.8
+
+    trueMotifNucleobaseDist = [
+        NucleobaseDist(a=0.8, c=0.1, g=0.05, t=0.05),
+        NucleobaseDist(a=0.0, c=0.9, g=0.05, t=0.05),
+        NucleobaseDist(a=0.0, c=0.0, g=0.5, t=0.5),
+        NucleobaseDist(a=0.25, c=0.25, g=0.25, t=0.25),
+        NucleobaseDist(a=0.1, c=0.1, g=0.1, t=0.7),
+        NucleobaseDist(a=0.0, c=0.0, g=0.9, t=0.1),
+        NucleobaseDist(a=0.9, c=0.05, g=0.0, t=0.05),
+        NucleobaseDist(a=0.5, c=0.5, g=0.0, t=0.0),
+    ]
+
+    motifLength = len(trueMotifNucleobaseDist)
+    backgroundNucleobaseDist = NucleobaseDist(a=0.25, c=0.25, g=0.25, t=0.25)
+
+    sequenceData, motifPositionData = SampleMotifData(SequenceCount, SequenceLength, 
+                                                      MotifPresenceProbability, 
+                                                      trueMotifNucleobaseDist, 
+                                                      backgroundNucleobaseDist)
+
+    # Char.MaxValue is a string '\uffff', so we convert the hex to decimal.
+    motif_nucleobase_pseudo_counts = PiecewiseVector.Constant(int('ffff', 16) + 1, 1e-6)
+    # Cannot call managed PiecewiseVector object's indexer with ['A'], i.e. cannot do
+    # motif_nucleobase_pseudo_counts['A'] = 2.0
+    motif_nucleobase_pseudo_counts[ord('A')] = 2.0
+    motif_nucleobase_pseudo_counts[ord('C')] = 2.0
+    motif_nucleobase_pseudo_counts[ord('G')] = 2.0
+    motif_nucleobase_pseudo_counts[ord('T')] = 2.0
+   
+    motifCharsRange = Range(motifLength)
+    motifNucleobaseProbs = Variable.Array[Vector](motifCharsRange)
+    # Cannot do motifNucleobaseProbs[motifCharsRange] = Variable.Dirichlet...
+    motifNucleobaseProbs.set_Item(motifCharsRange, Variable.Dirichlet(motif_nucleobase_pseudo_counts).ForEach(motifCharsRange))
+    sequenceRange = Range(SequenceCount)
+    sequences = Variable.Array[str](sequenceRange)
+
+    motifPositions = Variable.Array[int](sequenceRange)
+    motifPositions.set_Item(sequenceRange, Variable.DiscreteUniform(SequenceLength - motifLength + 1).ForEach(sequenceRange))
+
+    motifPresence = Variable.Array[bool](sequenceRange)
+    motifPresence.set_Item(sequenceRange, Variable.Bernoulli(MotifPresenceProbability).ForEach(sequenceRange))
+
+    forEachBlock = Variable.ForEach(sequenceRange)
+    ifVar = Variable.If(motifPresence.get_Item(sequenceRange))
+
+    motifChars = Variable.Array[Char](motifCharsRange)
+    motifChars.set_Item(motifCharsRange, Variable.Char(motifNucleobaseProbs.get_Item(motifCharsRange)))
+    motif = Variable.StringFromArray(motifChars)
+    # TODO: backgroundLengthRight = SequenceLength - motifLength - motifPositions.get_Item(sequenceRange)
+    motifPos = motifPositions.get_Item(sequenceRange)
+    motifPos = motifPos.op_Multiply(motifPos, -1)
+    backgroundLengthRight = motifPos.op_Addition(motifPos, SequenceLength - motifLength )
+
+    # TODO: backgroundLeft = Variable.StringOfLength(motifPositions.get_Item(sequenceRange), backgroundNucleobaseDist)
+    backgroundLeft = Invoker.InvokeStatic(Variable, "StringOfLength", 
+                                          [motifPositions.get_Item(sequenceRange), backgroundNucleobaseDist])
+    # TODO: backgroundRight = Variable.StringOfLength(backgroundLengthRight, backgroundNucleobaseDist)
+    backgroundRight = Invoker.InvokeStatic(Variable, "StringOfLength", 
+                                           [backgroundLengthRight, backgroundNucleobaseDist])
+    added_vars = backgroundLeft.op_Addition(backgroundLeft, motif)
+    added_vars = added_vars.op_Addition(added_vars, backgroundRight)
+    sequences.set_Item(sequenceRange, added_vars)
+
+    ifVar.Dispose()
+
+    ifNotVar = Variable.IfNot(motifPresence.get_Item(sequenceRange))
+
+    sequences.set_Item(sequenceRange, 
+                       Invoker.InvokeStatic(Variable, "StringOfLength", 
+                                            [SequenceLength, backgroundNucleobaseDist]))
+
+    ifNotVar.Dispose()
+    forEachBlock.CloseBlock()
+
+    sequences.ObservedValue = sequenceData
+    engine = InferenceEngine()
+    engine.NumberOfIterations = 30
+    engine.Compiler.RecommendedQuality = QualityBand.Experimental
+
+    motifNucleobaseProbsPosterior = engine.Infer[IList[Dirichlet]](motifNucleobaseProbs)
+
+
+def NucleobaseDist(a=0.0, c=0.0, g=0.0, t=0.0):
+    probs = PiecewiseVector.Zero(int('ffff', 16) + 1);
+    probs[ord('A')] = a;
+    probs[ord('C')] = c;
+    probs[ord('G')] = g;
+    probs[ord('T')] = t;
+    return DiscreteChar.FromVector(probs);
+
+def SampleMotifData(sequenceCount, sequenceLength, motifPresenceProbability, motif, backgroundDist):
+    """Samples data from the model.
+    Args:
+      motif (DiscreteChar[]) : Position frequency matrix defining the motif (true nucleobase distributions).
+
+    Returns:
+      sequenceData (str[]) : The sampled sequences
+      motifPositionData (int[]) : The motif positions in the sampled sequences.
+    """
+    sequenceData, motifPositionData = [None] * sequenceCount, [None] * sequenceCount
+    motifLength = len(motif)
+    for i in range(sequenceCount):
+        if (Rand.Double() < motifPresenceProbability):
+            motifPositionData[i] = Rand.Int(sequenceLength - motifLength + 1)
+            # Converter is prototype of lambda; has to be either lambda or another function.
+            # Instead of relying on Util.ArrayInit (following doesn't work)...
+            # backgroundBeforeChars = Util.ArrayInit(motifPositionData[i], lambda j :backgroundDist.Sample())
+            # We can make the array ourselves
+            backgroundBeforeChars = [backgroundDist.Sample() for _ in range(motifPositionData[i])]
+            backgroundAfterChars = [backgroundDist.Sample() for _ in range(sequenceLength - motifLength - motifPositionData[i])]
+            sampledMotifChars = [motif[j].Sample() for j in range(motifLength)]
+            sequenceData[i] = ''.join(backgroundBeforeChars) + ''.join(backgroundAfterChars) + ''.join(sampledMotifChars)
+        else:
+            motifPositionData[i] = -1
+            background = [backgroundDist.Sample() for _ in range(sequenceLength)]
+            sequenceData[i] = ''.join(background)
+    return sequenceData, motifPositionData
+
 
 # Using pytest in Visual Studio:
 # https://devblogs.microsoft.com/python/whats-new-for-python-in-visual-studio-16-3-preview-2/
 # pytest searches for tests in files named test_*.py or *_test.py
-# pytest collects functions with names prefixed by "test", either outside a class or in a class with name prefixed by "Test"
+# pytest collects functions with names prefixed by "test", either outside a class or in a class with name prUefixed by "Test"
 
 def test_tutorials():
     #TwoCoins()
@@ -315,7 +442,7 @@ def test_tutorials():
     # ClinicalTrial()
     # MixtureOfGaussians()
     # HelloStrings()
-    StringFormat()
-
+    # StringFormat()
+    MotifFinder()
 if __name__ == '__main__':
     test_tutorials()
