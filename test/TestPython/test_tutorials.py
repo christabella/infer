@@ -268,6 +268,7 @@ def StringFormat():
     # Infer argument
     name = Variable.StringCapitalized()
     # TODO: text = Variable.StringFormat("My name is {0}.", name)
+    # Can add overloads in Infer.NET, but understand why it doesn't work. Poss part of a larger generics issue.
     text = Invoker.InvokeStatic(Variable, "StringFormat", ["My name is {0}.", name])
     text.ObservedValue = "My name is John."
     engine = InferenceEngine()
@@ -359,8 +360,10 @@ def MotifFinder():
     motif = Variable.StringFromArray(motifChars)
     # TODO: backgroundLengthRight = SequenceLength - motifLength - motifPositions.get_Item(sequenceRange)
     motifPos = motifPositions.get_Item(sequenceRange)
-    motifPos = motifPos.op_Multiply(motifPos, -1)
-    backgroundLengthRight = motifPos.op_Addition(motifPos, SequenceLength - motifLength )
+
+    backgroundLengthRight = motifPos.op_Subtraction(Int32(SequenceLength - motifLength), motifPositions.get_Item(sequenceRange))
+    #motifPos = motifPos.op_Multiply(motifPos, -1)
+    #backgroundLengthRight = motifPos.op_Addition(motifPos, SequenceLength - motifLength )
 
     # TODO: backgroundLeft = Variable.StringOfLength(motifPositions.get_Item(sequenceRange), backgroundNucleobaseDist)
     backgroundLeft = Invoker.InvokeStatic(Variable, "StringOfLength", 
@@ -388,7 +391,7 @@ def MotifFinder():
     engine.NumberOfIterations = 30
     engine.Compiler.RecommendedQuality = QualityBand.Experimental
 
-    motifNucleobaseProbsPosterior = engine.Infer[IList[Dirichlet]](motifNucleobaseProbs)
+    motifNucleobaseProbsPosterior = engine.Infer(motifNucleobaseProbs)
 
 
 def NucleobaseDist(a=0.0, c=0.0, g=0.0, t=0.0):
