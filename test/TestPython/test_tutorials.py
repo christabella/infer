@@ -5,6 +5,7 @@
 import clr
 from System import Boolean, Double, Int32, Array, Char
 from System.Collections import IList
+from System import Console, ConsoleColor
 
 folder = "../Tests/bin/debug/net461/"
 clr.AddReference(folder+"Microsoft.ML.Probabilistic")
@@ -305,7 +306,7 @@ def StringFormat():
     text3 = Invoker.InvokeStatic(Variable, "StringFormat", [template, "Boris"])
     print(f"text3 is '{engine.Infer(text3)}'")
 def MotifFinder():
-    Rand.Restart(1337);
+    Rand.Restart(1337)
 
     SequenceCount = 50
     SequenceLength = 25
@@ -322,7 +323,6 @@ def MotifFinder():
         NucleobaseDist(a=0.5, c=0.5, g=0.0, t=0.0),
     ]
 
-    motifLength = len(trueMotifNucleobaseDist)
     backgroundNucleobaseDist = NucleobaseDist(a=0.25, c=0.25, g=0.25, t=0.25)
 
     sequenceData, motifPositionData = SampleMotifData(SequenceCount, SequenceLength, 
@@ -330,6 +330,11 @@ def MotifFinder():
                                                       trueMotifNucleobaseDist, 
                                                       backgroundNucleobaseDist)
 
+    assert(sequenceData[0] == "CTACTTCGAATTTACCCCTATATTT")
+    # should be CTACTTCGAATTTACCCCTATATTT
+    assert(len(sequenceData) == 50) 
+    assert(motifPositionData[:10] ==[2, 15, -1, 0, 14, 5, -1, 5, 1, 9])
+    assert(len(motifPositionData) == 50)
     # Char.MaxValue is a string '\uffff', so we convert the hex to decimal.
     motif_nucleobase_pseudo_counts = PiecewiseVector.Constant(int('ffff', 16) + 1, 1e-6)
     # Cannot call managed PiecewiseVector object's indexer with ['A'], i.e. cannot do
@@ -339,6 +344,7 @@ def MotifFinder():
     motif_nucleobase_pseudo_counts[ord('G')] = 2.0
     motif_nucleobase_pseudo_counts[ord('T')] = 2.0
    
+    motifLength = len(trueMotifNucleobaseDist)  # Assume we know the true motif length.
     motifCharsRange = Range(motifLength)
     motifNucleobaseProbs = Variable.Array[Vector](motifCharsRange)
     # Cannot do motifNucleobaseProbs[motifCharsRange] = Variable.Dirichlet...
@@ -361,10 +367,7 @@ def MotifFinder():
     # TODO: backgroundLengthRight = SequenceLength - motifLength - motifPositions.get_Item(sequenceRange)
     motifPos = motifPositions.get_Item(sequenceRange)
 
-    backgroundLengthRight = motifPos.op_Subtraction(Int32(SequenceLength - motifLength), motifPositions.get_Item(sequenceRange))
-    #motifPos = motifPos.op_Multiply(motifPos, -1)
-    #backgroundLengthRight = motifPos.op_Addition(motifPos, SequenceLength - motifLength )
-
+    backgroundLengthRight = motifPos.op_Subtraction(SequenceLength - motifLength, motifPositions.get_Item(sequenceRange))
     # TODO: backgroundLeft = Variable.StringOfLength(motifPositions.get_Item(sequenceRange), backgroundNucleobaseDist)
     backgroundLeft = Invoker.InvokeStatic(Variable, "StringOfLength", 
                                           [motifPositions.get_Item(sequenceRange), backgroundNucleobaseDist])
@@ -388,10 +391,63 @@ def MotifFinder():
 
     sequences.ObservedValue = sequenceData
     engine = InferenceEngine()
-    engine.NumberOfIterations = 30
+    engine.NumberOfIterations = 30  #30
     engine.Compiler.RecommendedQuality = QualityBand.Experimental
 
-    motifNucleobaseProbsPosterior = engine.Infer(motifNucleobaseProbs)
+    motifNucleobaseProbsPosterior = engine.Infer[Array[Dirichlet]](motifNucleobaseProbs)
+    motifPresencePosterior = engine.Infer[Array[Bernoulli]](motifPresence)
+    motifPositionPosterior = engine.Infer[Array[Discrete]](motifPositions)
+
+    # PrintMotifInferenceResults
+    PrintPositionFrequencyMatrix("\nTrue position frequency matrix:",
+                                 trueMotifNucleobaseDist,
+                                 lambda dist, c: dist[c])  # Distributions.DiscreteChar indexer is implemented.
+
+    PrintPositionFrequencyMatrix("\nInferred position frequency matrix mean:",
+                                 motifNucleobaseProbsPosterior, # Array of Distribtions.Dirichlet; mean of each is a PiecewiseVector
+                                 lambda dist, c: dist.GetMean()[ord(c)])  # PiecewiseVector indexer is implemented, but not for strings...
+    # TypeError: No method matches given arguments for get_Item: (<class 'str'>) -> need to do ord(c)
+    # Tried importing Console and ConsoleColor from System which works in powershell but not in VS console.
+
+    printc("\nPREDICTION   ", ConsoleColor.Yellow)
+    printc("GROUND TRUTH    ", ConsoleColor.Red)
+    printc("OVERLAP    \n\n", ConsoleColor.Green)
+    for i in range(min(SequenceCount, 30)):
+        motifPos = motifPositionPosterior[i].GetMode() if motifPresencePosterior[i].GetProbTrue() > 0.5 else -1
+
+        inPrediction, inGroundTruth = False, False
+        for j in range(SequenceLength):
+            if j == motifPos:
+                inPrediction = True
+            elif j == motifPos + motifLength:
+                inPrediction = False
+            if j == motifPositionData[i]:
+                inGroundTruth = True
+            elif j == motifPositionData[i] + motifLength:
+                inGroundTruth = False
+
+            color = Console.ForegroundColor
+            if (inPrediction and inGroundTruth):
+                color = ConsoleColor.Green
+            elif (inPrediction):
+                color = ConsoleColor.Yellow
+            elif inGroundTruth:
+                color = ConsoleColor.Red
+            printc(sequenceData[i][j], color)
+        print(f"    P(has motif) = {motifPresencePosterior[i].GetProbTrue():.2f}", end="");
+        if (motifPos != -1):
+            print(f"   P(pos={motifPos}) = {motifPositionPosterior[i][motifPos]:.2f}", end="");
+        print()
+    # Keep the application alive until the user enters a keystroke
+    print("Done.  Press enter to exit.")
+    Console.ReadKey()
+
+def PrintPositionFrequencyMatrix(caption, positionWeights, weightExtractor):
+    print(caption)
+    for nucleobase in ['A', 'C', 'T', 'G']:
+        print(f"{nucleobase}:   ", end="")
+        freqs = [weightExtractor(positionWeights[i], nucleobase) for i in range(len(positionWeights))]
+        print("   ".join([f"{freq:.2f}" for freq in freqs]))
 
 
 def NucleobaseDist(a=0.0, c=0.0, g=0.0, t=0.0):
@@ -423,13 +479,18 @@ def SampleMotifData(sequenceCount, sequenceLength, motifPresenceProbability, mot
             backgroundBeforeChars = [backgroundDist.Sample() for _ in range(motifPositionData[i])]
             backgroundAfterChars = [backgroundDist.Sample() for _ in range(sequenceLength - motifLength - motifPositionData[i])]
             sampledMotifChars = [motif[j].Sample() for j in range(motifLength)]
-            sequenceData[i] = ''.join(backgroundBeforeChars) + ''.join(backgroundAfterChars) + ''.join(sampledMotifChars)
+            sequenceData[i] = ''.join(backgroundBeforeChars) + ''.join(sampledMotifChars) + ''.join(backgroundAfterChars)
         else:
             motifPositionData[i] = -1
             background = [backgroundDist.Sample() for _ in range(sequenceLength)]
             sequenceData[i] = ''.join(background)
     return sequenceData, motifPositionData
 
+
+def printc(text, color=ConsoleColor.Yellow):
+    Console.ForegroundColor = color
+    Console.Write(text)
+    Console.ResetColor()
 
 # Using pytest in Visual Studio:
 # https://devblogs.microsoft.com/python/whats-new-for-python-in-visual-studio-16-3-preview-2/
